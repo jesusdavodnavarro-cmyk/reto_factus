@@ -1,0 +1,16 @@
+# Lo que NO entra a la imagen de Docker (más rápida y sin secretos)
+.git
+.dart_tool
+build
+android
+ios
+linux
+macos
+windows
+test
+**/.env
+**/.env.*
+backend/node_modules
+backend/dist
+backend/data
+backend/public

@@ -1,0 +1,38 @@
+# Blueprint de Render: infraestructura como código.
+# Render -> New -> Blueprint -> este repositorio. Las variables con "sync: false"
+# se piden en el panel al crear el servicio (los secretos NUNCA van aquí).
+services:
+  - type: web
+    name: sol-a-cuotas
+    runtime: docker
+    plan: free
+    region: virginia
+    branch: main
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: FACTUS_BASE_URL
+        value: https://api-sandbox.factus.com.co
+      - key: FACTUS_CLIENT_ID
+        sync: false
+      - key: FACTUS_CLIENT_SECRET
+        sync: false
+      - key: FACTUS_USERNAME
+        sync: false
+      - key: FACTUS_PASSWORD
+        sync: false
+      - key: FACTUS_PAY_BASE_URL
+        value: https://pay-api-sandbox.factus.com.co
+      - key: FACTUS_PAY_EMAIL
+        sync: false
+      - key: FACTUS_PAY_PASSWORD
+        sync: false
+      # Render genera una llave aleatoria; se copia al panel de Factus Pay (webhook)
+      - key: FACTUS_PAY_WEBHOOK_KEY
+        generateValue: true
+      - key: AFINIA_TARIFA_KWH
+        value: "1033"
+      - key: PRECIO_KWP_COP
+        value: "4200000"

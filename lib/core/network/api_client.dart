@@ -1,14 +1,22 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 
-/// URL del backend. Se cambia al ejecutar, sin tocar código:
-///   flutter run -d chrome --dart-define=API_URL=http://localhost:3000/api
+const String _apiUrlDefinida = String.fromEnvironment('API_URL');
+
+/// URL del backend:
+/// 1. Si se pasa al ejecutar, se usa esa:
+///      flutter run -d chrome --dart-define=API_URL=http://192.168.1.76:3000/api
+/// 2. En producción web (Render), la app la sirve el mismo backend:
+///    misma URL del sitio + /api  (ej. https://sol-a-cuotas.onrender.com/api)
+/// 3. Si no, el backend local.
 ///
 /// IMPORTANTE: esta app corre en el navegador; aquí NUNCA van credenciales
 /// de Factus. Todo lo de Factus lo hace el backend.
-const String apiUrl = String.fromEnvironment(
-  'API_URL',
-  defaultValue: 'http://localhost:3000/api',
-);
+final String apiUrl = _apiUrlDefinida.isNotEmpty
+    ? _apiUrlDefinida
+    : (kIsWeb && kReleaseMode)
+        ? '${Uri.base.origin}/api'
+        : 'http://localhost:3000/api';
 
 /// Error del backend ya traducido para mostrarlo en la UI.
 class ApiException implements Exception {
