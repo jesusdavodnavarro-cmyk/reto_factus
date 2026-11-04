@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { factusRouter } from './factus.routes';
+import { solicitudesRouter } from '../modules/solicitudes/solicitud.routes';
 
 export const router = Router();
 
@@ -10,3 +11,6 @@ router.get('/health', (_req, res) => {
 
 // Todo lo relacionado con Factus cuelga de /api/factus
 router.use('/factus', factusRouter);
+
+// Hito 1: "Quiero mi proyecto solar"
+router.use('/solicitudes', solicitudesRouter);
