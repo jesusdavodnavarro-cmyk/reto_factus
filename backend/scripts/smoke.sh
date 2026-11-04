@@ -42,6 +42,7 @@ req GET /health;                    check "Servidor vivo" 200
 
 echo "── Factus"
 req GET /factus/status;             check "Login con Factus" 200
+req GET /factus/pay/status;         check "Login con Factus Pay" 200
 req GET /factus/rangos;             check "Rangos de numeración" 200
 [[ "$CODE" == "200" ]] && echo "   Rango activo: $(campo 'o.data?.[0] ? o.data[0].id + " " + o.data[0].prefix : "ninguno"')"
 
@@ -68,6 +69,18 @@ check "No duplica proyecto" 409
 
 req GET "/proyectos/$PRY";          check "Ver proyecto" 200
 echo "   Resumen: $(campo 'JSON.stringify(o.resumen)')"
+
+# Facturar de verdad crea documentos en el sandbox: solo si se pide con FACTURAR=1
+if [[ "${FACTURAR:-0}" == "1" ]]; then
+  echo "── Hitos 3 y 4: factura + recaudo"
+  req POST "/cuotas/$PRY-C01/pagar";            check "Factura + recaudo de la cuota 1" 200
+  echo "   Factura $(campo 'o.factura?.number') · llave $(campo 'o.recaudo?.brebKey') · ref $(campo 'o.referencia')"
+  req POST "/cuotas/$PRY-C01/pagar";            check "Repetir no duplica factura" 200
+  req POST "/cuotas/$PRY-C01/verificar-pago";   check "Consultar estado del pago" 200
+  echo "   Estado: $(campo 'o.estado') (pague en el simulador y vuelva a verificar)"
+else
+  echo "── (Para probar factura + recaudo: FACTURAR=1 bash scripts/smoke.sh)"
+fi
 
 echo "──"
 if [[ $FALLOS -eq 0 ]]; then echo "🎉 Todo OK"; else echo "⚠️  $FALLOS prueba(s) fallaron"; exit 1; fi

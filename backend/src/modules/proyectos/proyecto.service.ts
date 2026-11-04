@@ -14,14 +14,19 @@ import { estimarValorTotalCop, potenciaNecesariaKwp } from './estimacion';
 export type EstadoCuota = 'pendiente' | 'facturada' | 'cobrando' | 'pagada' | 'anulada';
 
 export type Cuota = {
-    id: string;            // PRY-001-C01 (también es la referencia en Factus y Factus Pay)
+    id: string;            // PRY-001-C01 (para mostrar)
+    // Referencia ÚNICA que va IGUAL a Factus (reference_code) y a Factus Pay.
+    // Lleva un sufijo para no chocar con facturas del sandbox si se borra backend/data.
+    referencia: string;    // ej. PRY-001-C01-K7Q2X
     proyectoId: string;
     numero: number;        // 1, 2, 3...
     montoCop: number;      // pesos enteros
     vence: string;         // YYYY-MM-DD
     estado: EstadoCuota;
-    factura: { number: string; cufe: string; publicUrl?: string; validadaEn?: string } | null;
-    recaudo: { reference: string; status: string; qr?: string; link?: string } | null;
+    factura: { number: string; cufe: string; publicUrl?: string; qrDian?: string; validadaEn?: string } | null;
+    recaudo: { reference: string; status: string; qr?: string; brebKey?: string; qrExpiraEn?: string } | null;
+    pago: { pagadoEn: string; montoCop: number; origen: 'webhook' | 'consulta'; pagador?: unknown } | null;
+    historial: { fecha: string; evento: string; detalle?: string }[]; // trazabilidad
 };
 
 export type Proyecto = {
@@ -55,8 +60,10 @@ export function crearProyecto(input: CrearProyectoInput): Proyecto {
     if (financiadoCop <= 0) throw new HttpError(400, 'No queda valor por financiar');
 
     const id = `PRY-${String(store.count() + 1).padStart(3, '0')}`;
+    const sufijo = Date.now().toString(36).toUpperCase().slice(-5); // único por proyecto
     const primera = input.primeraCuotaVence ?? hoyColombia();
     const montos = repartir(financiadoCop, input.numeroCuotas);
+    const creadoEn = new Date().toISOString();
 
     const proyecto: Proyecto = {
         id,
@@ -69,17 +76,23 @@ export function crearProyecto(input: CrearProyectoInput): Proyecto {
         subsidioPct: input.subsidioPct,
         subsidioCop,
         financiadoCop,
-        creadoEn: new Date().toISOString(),
-        cuotas: montos.map((montoCop, i) => ({
-            id: `${id}-C${String(i + 1).padStart(2, '0')}`,
-            proyectoId: id,
-            numero: i + 1,
-            montoCop,
-            vence: sumarMeses(primera, i), // una cuota por mes
-            estado: 'pendiente',
-            factura: null,
-            recaudo: null,
-        })),
+        creadoEn,
+        cuotas: montos.map((montoCop, i) => {
+            const cuotaId = `${id}-C${String(i + 1).padStart(2, '0')}`;
+            return {
+                id: cuotaId,
+                referencia: `${cuotaId}-${sufijo}`,
+                proyectoId: id,
+                numero: i + 1,
+                montoCop,
+                vence: sumarMeses(primera, i), // una cuota por mes
+                estado: 'pendiente' as const,
+                factura: null,
+                recaudo: null,
+                pago: null,
+                historial: [{ fecha: creadoEn, evento: 'creada' }],
+            };
+        }),
     };
 
     store.insert(proyecto);
@@ -106,10 +119,26 @@ export function obtenerCuota(cuotaId: string): { proyecto: Proyecto; cuota: Cuot
     return { proyecto, cuota };
 }
 
-// Guarda cambios de una cuota (estado, factura, recaudo)
-export function actualizarCuota(cuotaId: string, cambios: Partial<Omit<Cuota, 'id' | 'proyectoId'>>): Cuota {
+// Busca la cuota por la referencia que viaja en Factus / Factus Pay (conciliación)
+export function buscarCuotaPorReferencia(referencia: string): { proyecto: Proyecto; cuota: Cuota } | null {
+    for (const proyecto of store.all()) {
+        const cuota = proyecto.cuotas.find((c) => c.referencia === referencia);
+        if (cuota) return { proyecto, cuota };
+    }
+    return null;
+}
+
+// Guarda cambios de una cuota (estado, factura, recaudo) y anota el evento en su historial
+export function actualizarCuota(
+    cuotaId: string,
+    cambios: Partial<Omit<Cuota, 'id' | 'proyectoId' | 'referencia' | 'historial'>>,
+    evento?: { evento: string; detalle?: string },
+): Cuota {
     const { proyecto, cuota } = obtenerCuota(cuotaId);
-    const actualizada = { ...cuota, ...cambios };
+    const historial = evento
+        ? [...(cuota.historial ?? []), { fecha: new Date().toISOString(), ...evento }]
+        : cuota.historial ?? [];
+    const actualizada = { ...cuota, ...cambios, historial };
     store.update({ ...proyecto, cuotas: proyecto.cuotas.map((c) => (c.id === cuotaId ? actualizada : c)) });
     return actualizada;
 }

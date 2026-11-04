@@ -71,6 +71,20 @@ class _InformeResultsWidgetState extends ConsumerState<InformeResultsWidget> {
                   color: tema.colorScheme.primary,
                   negrita: true,
                 ),
+                const SizedBox(height: 8),
+                // Conciliación en tiempo real (se recalcula en el backend con cada pago)
+                _fila(
+                  'Recaudado (${proyecto.resumen.cuotasPagadas}/${proyecto.resumen.cuotasTotales} cuotas)',
+                  _moneda.format(proyecto.resumen.recaudadoCop),
+                  color: AppColors.success,
+                ),
+                _fila('Pendiente', _moneda.format(proyecto.resumen.pendienteCop)),
+                if (proyecto.resumen.enMoraCop > 0)
+                  _fila(
+                    'En mora',
+                    _moneda.format(proyecto.resumen.enMoraCop),
+                    color: AppColors.error,
+                  ),
               ],
             ),
           ),

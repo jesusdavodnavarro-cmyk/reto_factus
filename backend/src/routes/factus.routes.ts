@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { getToken, tokenSecondsLeft } from '../integrations/factus/tokenManager';
 import { factusRequest } from '../integrations/factus/factusClient';
+import { verificarPay } from '../integrations/factusPay/payClient';
 
 export const factusRouter = Router();
 
@@ -14,6 +15,12 @@ factusRouter.get('/status', async (_req, res) => {
         factus: 'conectado',
         tokenExpiresInSeconds: tokenSecondsLeft(),
     });
+});
+
+// GET /api/factus/pay/status -> ¿el backend se autentica con Factus Pay?
+factusRouter.get('/pay/status', async (_req, res) => {
+    await verificarPay();
+    res.json({ factusPay: 'conectado' });
 });
 
 // GET /api/factus/rangos -> rangos de numeración ACTIVOS para factura de venta.
