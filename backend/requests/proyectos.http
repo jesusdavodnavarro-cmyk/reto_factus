@@ -1,0 +1,26 @@
+# Proyectos y plan de cuotas. Antes crea una solicitud (solicitudes.http).
+
+@api = http://localhost:3000/api
+
+### Crear proyecto: $12.000.000, 60 % de subsidio, 6 cuotas mensuales
+POST {{api}}/proyectos
+Content-Type: application/json
+
+{
+  "solicitudId": "SOL-001",
+  "valorTotalCop": 12000000,
+  "subsidioPct": 60,
+  "numeroCuotas": 6
+}
+
+### Repetir con la misma solicitud -> 409 (una solicitud = un proyecto)
+POST {{api}}/proyectos
+Content-Type: application/json
+
+{ "solicitudId": "SOL-001", "valorTotalCop": 12000000, "numeroCuotas": 6 }
+
+### Listar proyectos con totales
+GET {{api}}/proyectos
+
+### Detalle con cuotas
+GET {{api}}/proyectos/PRY-001

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { getToken, tokenSecondsLeft } from '../integrations/factus/tokenManager';
+import { factusRequest } from '../integrations/factus/factusClient';
 
 export const factusRouter = Router();
 
@@ -13,4 +14,18 @@ factusRouter.get('/status', async (_req, res) => {
         factus: 'conectado',
         tokenExpiresInSeconds: tokenSecondsLeft(),
     });
+});
+
+// GET /api/factus/rangos -> rangos de numeración ACTIVOS para factura de venta.
+// Sin un rango activo no se puede emitir factura (Hito 3).
+// Por ahora devolvemos lo que responde Factus tal cual: primero miramos
+// la forma real de la respuesta y DESPUÉS la modelamos.
+factusRouter.get('/rangos', async (_req, res) => {
+    const query = new URLSearchParams({
+        'filter[document]': '21', // 21 = Factura de venta
+        'filter[is_active]': '1', // solo activos
+    });
+
+    const { data } = await factusRequest<unknown>('GET', `/v2/numbering-ranges?${query}`);
+    res.json(data);
 });

@@ -8,7 +8,7 @@ import type { CrearSolicitudInput } from './solicitud.schema';
 
 export type Solicitud = Omit<CrearSolicitudInput, 'consumo'> & {
     id: string;              // SOL-001, SOL-002...
-    estado: 'recibida';      // luego: cotizada, aprobada... (Hito 2)
+    estado: 'recibida' | 'en_proyecto'; // en_proyecto = ya tiene plan de cuotas
     creadaEn: string;        // ISO 8601
     consumoKwhMes: number;   // SIEMPRE en kWh, ya normalizado
     consumoOriginal: CrearSolicitudInput['consumo']; // lo que escribió el cliente
@@ -43,6 +43,11 @@ export function obtenerSolicitud(id: string): Solicitud {
     const solicitud = store.get(id);
     if (!solicitud) throw new HttpError(404, `Solicitud ${id} no encontrada`);
     return solicitud;
+}
+
+export function marcarEnProyecto(id: string): void {
+    const solicitud = obtenerSolicitud(id);
+    store.update({ ...solicitud, estado: 'en_proyecto' });
 }
 
 // $ de la factura de luz / tarifa ($/kWh) = kWh consumidos
