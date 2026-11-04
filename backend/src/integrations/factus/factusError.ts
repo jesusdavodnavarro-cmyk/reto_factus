@@ -16,6 +16,19 @@ export class FactusError extends Error {
     }
 }
 
+// fetch() que no se rompe con 500 si Factus no responde (caído, sin internet o timeout):
+// lo convierte en FactusError 502 con un mensaje claro.
+export async function fetchFactus(url: string, init: RequestInit): Promise<Response> {
+    try {
+        return await fetch(url, init);
+    } catch (error) {
+        const motivo = error instanceof Error && error.name === 'TimeoutError'
+            ? 'Factus tardó demasiado en responder'
+            : 'No se pudo conectar con Factus';
+        throw new FactusError(motivo, 0, error instanceof Error ? String(error.cause ?? error.message) : String(error));
+    }
+}
+
 // Lee la respuesta sin romperse si viene vacía o no es JSON (por ejemplo, una página de error HTML).
 export async function readBody(res: Response): Promise<unknown> {
     const text = await res.text();

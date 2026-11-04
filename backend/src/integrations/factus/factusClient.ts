@@ -1,6 +1,6 @@
 import { env } from '../../config/env';
 import { getToken, invalidateToken } from './tokenManager';
-import { FactusError, readBody } from './factusError';
+import { FactusError, fetchFactus, readBody } from './factusError';
 
 type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'DELETE';
 
@@ -43,7 +43,7 @@ export async function factusRequest<T>(
 async function send(method: HttpMethod, path: string, body?: unknown): Promise<Response> {
     const token = await getToken();
 
-    return fetch(`${env.FACTUS_BASE_URL}${path}`, {
+    return fetchFactus(`${env.FACTUS_BASE_URL}${path}`, {
         method,
         headers: {
             Authorization: `Bearer ${token}`,

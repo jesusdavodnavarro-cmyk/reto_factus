@@ -8,6 +8,7 @@ import { HttpError } from '../../lib/httpError';
 import { hoyColombia, sumarMeses } from '../../lib/fechas';
 import { marcarEnProyecto, obtenerSolicitud } from '../solicitudes/solicitud.service';
 import type { CrearProyectoInput } from './proyecto.schema';
+import { estimarValorTotalCop, potenciaNecesariaKwp } from './estimacion';
 
 // Flujo B: pendiente -> facturada -> cobrando -> pagada   (facturada -> anulada con nota crédito)
 export type EstadoCuota = 'pendiente' | 'facturada' | 'cobrando' | 'pagada' | 'anulada';
@@ -27,6 +28,7 @@ export type Proyecto = {
     id: string;            // PRY-001
     solicitudId: string;
     cliente: string;       // nombre o razón social, para mostrar en el panel
+    potenciaKwp: number;   // tamaño del sistema según el consumo
     valorTotalCop: number;
     subsidioPct: number;
     subsidioCop: number;
@@ -45,8 +47,11 @@ export function crearProyecto(input: CrearProyectoInput): Proyecto {
         throw new HttpError(409, `La solicitud ${solicitud.id} ya tiene proyecto`);
     }
 
-    const subsidioCop = Math.round((input.valorTotalCop * input.subsidioPct) / 100);
-    const financiadoCop = input.valorTotalCop - subsidioCop;
+    const potenciaKwp = potenciaNecesariaKwp(solicitud.consumoKwhMes);
+    const valorTotalCop = input.valorTotalCop ?? estimarValorTotalCop(potenciaKwp);
+
+    const subsidioCop = Math.round((valorTotalCop * input.subsidioPct) / 100);
+    const financiadoCop = valorTotalCop - subsidioCop;
     if (financiadoCop <= 0) throw new HttpError(400, 'No queda valor por financiar');
 
     const id = `PRY-${String(store.count() + 1).padStart(3, '0')}`;
@@ -59,7 +64,8 @@ export function crearProyecto(input: CrearProyectoInput): Proyecto {
         cliente: solicitud.facturacion.tipoPersona === 'natural'
             ? solicitud.facturacion.nombres
             : solicitud.facturacion.razonSocial,
-        valorTotalCop: input.valorTotalCop,
+        potenciaKwp,
+        valorTotalCop,
         subsidioPct: input.subsidioPct,
         subsidioCop,
         financiadoCop,

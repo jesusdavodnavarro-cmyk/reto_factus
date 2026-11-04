@@ -21,6 +21,9 @@ const envSchema = z.object({
 
   // Tarifa de energía de Afinia en COP por kWh. Se configura sin tocar código.
   AFINIA_TARIFA_KWH: z.coerce.number().positive().default(1033),
+
+  // Precio instalado por kWp (COP). Se usa para estimar el valor del proyecto.
+  PRECIO_KWP_COP: z.coerce.number().int().positive().default(4_200_000),
 });
 
 const parsed = envSchema.safeParse(process.env);

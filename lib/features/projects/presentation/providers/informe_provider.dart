@@ -1,137 +1,79 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../domain/entities/cuota_entity.dart';
-import '../../domain/entities/informe_solar_entity.dart';
 
-// 1. Estado inmutable que representa la pantalla del informe
+import '../../../../core/network/api_client.dart';
+import '../../data/projects_repository.dart';
+import '../../domain/entities/informe_solar_entity.dart';
+import '../../domain/entities/proyecto_entity.dart';
+
+/// Estado inmutable de la pantalla del informe.
+/// Los números (valor, subsidio, cuotas) vienen SIEMPRE del backend.
 class InformeState {
   final bool isLoading;
   final String? error;
-  final InformeSolarEntity? solicitud; // Cambiado a InformeSolarEntity
-  final double? costoTotal;
-  final double? anticipo;
-  final double? saldoFinanciar;
-  final List<CuotaEntity>? tablaAmortizacion;
 
-  InformeState({
+  /// Errores por campo que devolvió el backend (400). Clave: 'facturacion.email'
+  final Map<String, String> erroresCampos;
+
+  final InformeSolarEntity? solicitud; // lo que llenó el cliente
+  final SolicitudCreada? solicitudCreada; // SOL-001 + consumo en kWh
+  final ProyectoEntity? proyecto; // PRY-001 + cuotas
+
+  const InformeState({
     this.isLoading = false,
     this.error,
+    this.erroresCampos = const {},
     this.solicitud,
-    this.costoTotal,
-    this.anticipo,
-    this.saldoFinanciar,
-    this.tablaAmortizacion,
+    this.solicitudCreada,
+    this.proyecto,
   });
 
-  InformeState copyWith({
-    bool? isLoading,
-    String? error,
-    InformeSolarEntity? solicitud, // Cambiado a InformeSolarEntity
-    double? costoTotal,
-    double? anticipo,
-    double? saldoFinanciar,
-    List<CuotaEntity>? tablaAmortizacion,
-  }) {
-    return InformeState(
-      isLoading: isLoading ?? this.isLoading,
-      error: error,
-      solicitud: solicitud ?? this.solicitud,
-      costoTotal: costoTotal ?? this.costoTotal,
-      anticipo: anticipo ?? this.anticipo,
-      saldoFinanciar: saldoFinanciar ?? this.saldoFinanciar,
-      tablaAmortizacion: tablaAmortizacion ?? this.tablaAmortizacion,
-    );
-  }
+  bool get tieneResultado => proyecto != null;
 }
 
-// 2. Notifier Moderno (Riverpod 2.x) que maneja la lógica matemática
+/// Orquesta el flujo: formulario -> POST /solicitudes -> POST /proyectos.
 class InformeNotifier extends Notifier<InformeState> {
   @override
-  InformeState build() {
-    return InformeState();
-  }
+  InformeState build() => const InformeState();
 
-  // Simulación de cálculo basado en el consumo
-  void generarInforme({
-    required double consumo,
-    required bool esPesos, // true = COP, false = kWh
+  Future<void> generarInforme({
+    required InformeSolarEntity solicitud,
     required int plazoMeses,
-    required Facturacion datosCliente, // Cambiado a Facturacion
-  }) {
-    state = state.copyWith(isLoading: true, error: null);
+  }) async {
+    // Limpiamos errores anteriores y mostramos el cargando
+    state = InformeState(isLoading: true, solicitud: solicitud);
+    final repo = ref.read(projectsRepositoryProvider);
 
     try {
-      // Reglas de negocio simuladas
-      double costoProyecto = esPesos ? (consumo * 20) : (consumo * 10000);
+      // 1. Guardar la solicitud (el backend valida y convierte pesos -> kWh)
+      final creada = await repo.crearSolicitud(solicitud);
 
-      // El cliente debe dar 40% de anticipo
-      double anticipoRequerido = costoProyecto * 0.40;
-      double saldo = costoProyecto - anticipoRequerido;
-
-      // Generar la tabla de amortización (Simulando cuotas fijas sin interés para simplificar)
-      double valorCapitalPorCuota = saldo / plazoMeses;
-      List<CuotaEntity> amortizacion = [];
-
-      for (int i = 1; i <= plazoMeses; i++) {
-        amortizacion.add(
-          CuotaEntity(
-            numero: i, // Cambiado a numero
-            fechaVencimiento: DateTime.now().add(Duration(days: 30 * i)),
-            valorCapital: valorCapitalPorCuota, // Nuevo campo requerido
-            valorInteres: 0.0, // Simulado a 0 para el MVP
-            valorTotal: valorCapitalPorCuota, // Nuevo campo requerido
-            estado: 'pendiente',
-          ),
-        );
-      }
-
-      // Preparamos el objeto JSON para el Backend usando InformeSolarEntity
-      final solicitudLista = InformeSolarEntity(
-        consumo: Consumo(
-          // Cambiado a Consumo
-          valor: consumo,
-          unidad: esPesos ? 'COP' : 'kWh',
-        ),
-        presupuestoCop: anticipoRequerido
-            .roundToDouble(), // Aseguramos que sea double
-        areaDisponibleM2: 0.0,
-        contacto: Contacto(
-          // Cambiado a Contacto
-          nombre: datosCliente.nombres ?? datosCliente.razonSocial ?? '',
-          email: datosCliente.email,
-          telefono: datosCliente.telefono,
-        ),
-        facturacion: datosCliente,
+      // 2. Generar el plan de cuotas (el backend estima valor y subsidio)
+      final proyecto = await repo.crearProyecto(
+        solicitudId: creada.id,
+        numeroCuotas: plazoMeses,
       );
 
-      // Actualizamos el estado con éxito
-      state = state.copyWith(
-        isLoading: false,
-        solicitud: solicitudLista,
-        costoTotal: costoProyecto,
-        anticipo: anticipoRequerido,
-        saldoFinanciar: saldo,
-        tablaAmortizacion: amortizacion,
+      state = InformeState(
+        solicitud: solicitud,
+        solicitudCreada: creada,
+        proyecto: proyecto,
+      );
+    } on ApiException catch (e) {
+      state = InformeState(
+        solicitud: solicitud,
+        error: e.mensaje,
+        erroresCampos: e.campos,
       );
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        error: 'Error al calcular el proyecto: $e',
-      );
+      // Cualquier otro error: nunca dejar la pantalla "cargando" para siempre
+      state = InformeState(solicitud: solicitud, error: 'Error inesperado: $e');
     }
   }
 
-  // TO DO: Conectar con el backend usando Dio
-  Future<void> enviarSolicitudABackend() async {
-    if (state.solicitud == null) return;
-
-    state = state.copyWith(isLoading: true);
-    // Aquí irá el POST a {{api}}/solicitudes
-    await Future.delayed(const Duration(seconds: 2));
-    state = state.copyWith(isLoading: false);
-  }
+  /// Vuelve al formulario para una nueva simulación
+  void reiniciar() => state = const InformeState();
 }
 
-// 3. Provider global usando la nueva sintaxis NotifierProvider
-final informeProvider = NotifierProvider<InformeNotifier, InformeState>(() {
-  return InformeNotifier();
-});
+final informeProvider = NotifierProvider<InformeNotifier, InformeState>(
+  InformeNotifier.new,
+);

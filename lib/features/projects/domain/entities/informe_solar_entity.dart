@@ -110,7 +110,8 @@ class InformeSolarEntity {
   factory InformeSolarEntity.fromJson(Map<String, dynamic> json) {
     return InformeSolarEntity(
       id: json['id'],
-      consumo: Consumo.fromJson(json['consumo']),
+      // El backend responde "consumoOriginal" (lo que escribió el cliente)
+      consumo: Consumo.fromJson(json['consumo'] ?? json['consumoOriginal']),
       presupuestoCop: (json['presupuestoCop'] as num).toDouble(),
       areaDisponibleM2: (json['areaDisponibleM2'] as num).toDouble(),
       contacto: Contacto.fromJson(json['contacto']),
@@ -122,10 +123,31 @@ class InformeSolarEntity {
     return {
       // El id no se envía en el POST, se obvia
       'consumo': consumo.toJson(),
-      'presupuestoCop': presupuestoCop,
+      'presupuestoCop': presupuestoCop.round(), // el backend exige pesos enteros
       'areaDisponibleM2': areaDisponibleM2,
       'contacto': contacto.toJson(),
       'facturacion': facturacion.toJson(),
     };
+  }
+}
+
+/// Lo que responde el backend al crear la solicitud (POST /api/solicitudes).
+class SolicitudCreada {
+  final String id; // SOL-001
+  final double consumoKwhMes; // siempre en kWh, ya convertido por el backend
+  final double? tarifaKwhUsada; // tarifa Afinia usada si el consumo vino en pesos
+
+  const SolicitudCreada({
+    required this.id,
+    required this.consumoKwhMes,
+    this.tarifaKwhUsada,
+  });
+
+  factory SolicitudCreada.fromJson(Map<String, dynamic> json) {
+    return SolicitudCreada(
+      id: json['id'] as String,
+      consumoKwhMes: (json['consumoKwhMes'] as num).toDouble(),
+      tarifaKwhUsada: (json['tarifaKwhUsada'] as num?)?.toDouble(),
+    );
   }
 }

@@ -41,7 +41,8 @@ class ClienteDashboardScreen extends ConsumerWidget {
               const SizedBox(height: 32),
 
               // Lógica de renderizado limpia y DRY
-              if (estadoInforme.solicitud == null)
+              // Sin proyecto todavía -> formulario; con proyecto -> resultados
+              if (!estadoInforme.tieneResultado)
                 const InformeFormWidget()
               else
                 const InformeResultsWidget(),

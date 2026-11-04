@@ -4,7 +4,7 @@
 // - evita pedir dos tokens al mismo tiempo.
 
 import { env } from '../../config/env';
-import { FactusError, readBody } from './factusError';
+import { FactusError, fetchFactus, readBody } from './factusError';
 
 type TokenResponse = {
     access_token: string;
@@ -69,7 +69,7 @@ function refreshToken(rt: string): Promise<string> {
 
 // Lo que ambas comparten: enviar el formulario, validar la respuesta y guardar en cache.
 async function postToken(fields: Record<string, string>): Promise<string> {
-    const res = await fetch(TOKEN_URL, {
+    const res = await fetchFactus(TOKEN_URL, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
