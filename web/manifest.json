@@ -1,11 +1,11 @@
 {
-    "name": "reto_factus",
-    "short_name": "reto_factus",
+    "name": "Sol a Cuotas",
+    "short_name": "Sol a Cuotas",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#F5F7FA",
+    "theme_color": "#2E7D32",
+    "description": "Tu proyecto solar en cuotas, con factura electrónica y pago con Bre-B.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

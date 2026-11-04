@@ -1,0 +1,9 @@
+# Pruebas de la integración con Factus (requiere credenciales en backend/.env)
+
+@api = http://localhost:3000/api
+
+### ¿El backend se autentica con Factus?
+GET {{api}}/factus/status
+
+### Rangos de numeración activos para factura de venta
+GET {{api}}/factus/rangos

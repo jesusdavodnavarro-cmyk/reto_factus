@@ -1,0 +1,59 @@
+# Peticiones de prueba. En VS Code instala la extensión "REST Client"
+# y haz clic en "Send Request" encima de cada una.
+# También sirve como CONTRATO para el equipo de UI: este es el JSON que envía la PWA.
+
+@api = http://localhost:3000/api
+
+### Persona natural, consumo en pesos de su factura de luz
+POST {{api}}/solicitudes
+Content-Type: application/json
+
+{
+  "consumo": { "valor": 516500, "unidad": "COP" },
+  "presupuestoCop": 8000000,
+  "areaDisponibleM2": 40,
+  "contacto": { "nombre": "Ana Pérez", "email": "ana@correo.co", "telefono": "3001234567" },
+  "facturacion": {
+    "tipoPersona": "natural",
+    "tipoDocumento": "CC",
+    "nombres": "Ana Pérez",
+    "numeroDocumento": "1067123456",
+    "direccion": "Calle 30 # 5-20",
+    "email": "ana@correo.co",
+    "telefono": "3001234567"
+  }
+}
+
+### Persona jurídica (pyme), consumo en kWh
+POST {{api}}/solicitudes
+Content-Type: application/json
+
+{
+  "consumo": { "valor": 1200, "unidad": "kWh" },
+  "presupuestoCop": 20000000,
+  "areaDisponibleM2": 120,
+  "contacto": { "nombre": "Luis Gómez", "email": "luis@pan.co", "telefono": "3009998877" },
+  "facturacion": {
+    "tipoPersona": "juridica",
+    "tipoDocumento": "NIT",
+    "razonSocial": "Panadería El Sol SAS",
+    "numeroDocumento": "900123456",
+    "dv": "7",
+    "direccion": "Cra 2 # 40-10",
+    "email": "facturacion@pan.co",
+    "telefono": "6047891234",
+    "municipioCodigo": "23001"
+  }
+}
+
+### Datos inválidos -> 400 con la lista de campos
+POST {{api}}/solicitudes
+Content-Type: application/json
+
+{ "consumo": { "valor": -5, "unidad": "W" } }
+
+### Listar (panel del contratista)
+GET {{api}}/solicitudes
+
+### Detalle
+GET {{api}}/solicitudes/SOL-001

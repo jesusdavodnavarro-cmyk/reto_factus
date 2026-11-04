@@ -1,0 +1,27 @@
+# Flujo B de una cuota: factura (Factus) -> recaudo (Factus Pay) -> pago -> conciliación
+# Antes: crea solicitud (solicitudes.http) y proyecto (proyectos.http)
+
+@api = http://localhost:3000/api
+@cuota = PRY-001-C01
+
+### ¿Factus Pay conecta?
+GET {{api}}/factus/pay/status
+
+### 1. Facturar la cuota (factura electrónica validada por la DIAN)
+POST {{api}}/cuotas/{{cuota}}/facturar
+
+### 2. Crear el recaudo en Factus Pay (QR + llave Bre-B, misma referencia)
+POST {{api}}/cuotas/{{cuota}}/cobrar
+
+### 1 + 2 en un paso (lo que hace el botón "Pagar" de la app)
+POST {{api}}/cuotas/{{cuota}}/pagar
+
+### 3. Pague en el simulador: https://pay-api-sandbox.factus.com.co/simulator
+### 4. Verificar el pago y conciliar (respaldo del webhook)
+POST {{api}}/cuotas/{{cuota}}/verificar-pago
+
+### Detalle con factura, recaudo, pago e historial
+GET {{api}}/cuotas/{{cuota}}
+
+### Totales del proyecto (facturado, recaudado, pendiente, mora)
+GET {{api}}/proyectos/PRY-001
